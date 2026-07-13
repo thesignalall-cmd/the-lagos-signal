@@ -1,8 +1,8 @@
 // TLS - The Lagos Signal
 // Supabase Connection Layer
 
-const SUPABASE_URL = "YOUR_PROJECT_URL";
-const SUPABASE_KEY = "YOUR_PUBLISHABLE_KEY";
+const SUPABASE_URL = "https://qopurblqvxiqjdspvdlp.supabase.co";
+const SUPABASE_KEY = "your_publishable_key_here";
 
 const supabaseClient = supabase.createClient(
   SUPABASE_URL,
