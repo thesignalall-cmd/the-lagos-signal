@@ -380,6 +380,14 @@
 <script>
 const USD=1370, EUR=1568;
 const ng = n => '₦'+n.toLocaleString('en-NG');
+const SUPABASE_URL = "https://qopurblqvxiqjdspvdlp.supabase.co";
+
+const SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+); 
 const usd = n => '$'+Math.round(n/USD).toLocaleString('en-US');
 const eur = n => '€'+Math.round(n/EUR).toLocaleString('en-US');
 
@@ -650,4 +658,5 @@ setTimeout(()=>document.body.classList.add('booted'),2400);
 </script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 </body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </html>
