@@ -1,76 +1,23 @@
-// TLS — The Lagos Signal
-// Live Supabase Signal Reader
-window.SUPABASE_URL = "https://qopurblqvxiqjdspvdlp.supabase.co";
+// index.html — load the library FIRST, once:
+// <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+// <script src="app.js"></script>
 
-window.SUPABASE_KEY = "YOUR_PUBLISHABLE_KEY_HERE";
+// app.js
+const SUPABASE_URL = 'https://YOUR-NEW-TLS-REF.supabase.co';
+const SUPABASE_ANON_KEY = 'your-publishable-anon-key';   // anon key ONLY — never the service key
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-async function loadTLSsignals() {
+// note: 'sb', not 'supabase' — this is the fix
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const { data, error } = await supabaseClient
-    .from("signals")
-    .select("*")
-    .order("created_at", { ascending: false });
+async function loadSignals() {
+  const { data, error } = await sb
+    .from('signals')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-
-  if (error) {
-    console.error("TLS Connection Error:", error);
-    return;
-  }
-
-
-  console.log("TLS LIVE SIGNALS:", data);
-
-
-  const feed = document.getElementById("feed");
-
-  if (!feed) {
-    console.log("Feed container not found yet");
-    return;
-  }
-
-
-  feed.innerHTML = data.map(signal => `
-
-    <div class="cable">
-
-      <div class="cable-main">
-
-        <div class="cable-meta">
-          <span class="cable-type">
-            ${signal.category || "INTELLIGENCE"}
-          </span>
-        </div>
-
-
-        <div class="cable-head">
-          ${signal.title}
-        </div>
-
-
-        <div class="cable-body">
-          Source: ${signal.source || "CONFIRM"}
-        </div>
-
-
-        <div class="cable-tags">
-          Confidence:
-          ${signal.confidence || "N/A"}%
-          
-          Status:
-          ${signal.status || "Pending"}
-        </div>
-
-      </div>
-
-    </div>
-
-  `).join("");
-
+  if (error) { console.error('Supabase error:', error); return; }
+  console.log('signals:', data);
+  renderSignals(data);
 }
 
-
-loadTLSsignals();
+loadSignals();
