@@ -647,6 +647,7 @@ tick(); setInterval(tick,1000);
 /* boot */
 ['b1','b2','b3','b4','b5'].forEach((id,i)=>{document.getElementById(id).style.animation=`bootline .3s ease forwards ${.25+i*.32}s`;});
 setTimeout(()=>document.body.classList.add('booted'),2400);
-</script>
+</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
 </body>
 </html>
