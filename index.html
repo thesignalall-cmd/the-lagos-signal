@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Lagos Signal — Intelligence Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0F14; --panel:#121821; --panel-2:#0E141C;
+    --line:#22303F; --line-soft:#1A242F;
+    --brass:#C8A54B; --brass-dim:#8A7333;
+    --verified:#4F9B7A; --street:#5B9DAD; --ember:#D5613E;
+    --text:#E6E3DA; --muted:#8A97A6; --muted-2:#5A6875;
+    --font-display:"Fraunces",Georgia,serif;
+    --font-ui:"Archivo",system-ui,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+    --font-tele:"Special Elite","IBM Plex Mono",monospace; /* the telegram output face */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--ink);color:var(--text);font-family:var(--font-ui);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
+  ::selection{background:var(--brass);color:var(--ink)}
+  button{font-family:inherit;color:inherit;cursor:pointer;background:none;border:none}
+  :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+  /* boot */
+  #boot{position:fixed;inset:0;background:var(--ink);z-index:100;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono)}
+  #boot .boot-inner{width:min(560px,86vw)}
+  #boot .boot-word{font-family:var(--font-display);font-size:30px;letter-spacing:.5px;margin-bottom:6px}
+  #boot .boot-word b{color:var(--brass);font-weight:600}
+  #boot .boot-morse{font-family:var(--font-mono);font-size:11px;letter-spacing:4px;color:var(--muted-2);margin-bottom:18px}
+  #boot .line{font-size:12px;color:var(--muted);opacity:0;white-space:nowrap;overflow:hidden}
+  #boot .line .ok{color:var(--verified)}
+  @keyframes bootline{to{opacity:1}}
+  body.booted #boot{opacity:0;pointer-events:none;transition:opacity .5s ease}
+
+  .shell{display:flex;flex-direction:column;height:100vh}
+
+  /* masthead */
+  .masthead{display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0E141C,#0B0F14);flex:0 0 auto}
+  .brand{display:flex;flex-direction:column;justify-content:center;padding:11px 20px;border-right:1px solid var(--line);min-width:290px}
+  .brand .word{font-family:var(--font-display);font-size:21px;font-weight:600;letter-spacing:.3px;line-height:1}
+  .brand .word .the{color:var(--muted);font-weight:400;font-size:15px}
+  .brand .word .sys{color:var(--brass)}
+  .brand .tag{font-family:var(--font-mono);font-size:10px;letter-spacing:2px;color:var(--muted-2);text-transform:uppercase;margin-top:5px}
+  .morse{font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:var(--muted-2);margin-top:4px}
+
+  .ticker-wrap{flex:1;overflow:hidden;border-right:1px solid var(--line);position:relative}
+  .ticker{display:flex;align-items:center;height:100%;gap:34px;padding-left:20px;white-space:nowrap;font-family:var(--font-mono);font-size:12px;animation:scroll 40s linear infinite}
+  .ticker:hover{animation-play-state:paused}
+  @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .tk{display:inline-flex;align-items:center;gap:8px}
+  .tk .sym{color:var(--muted)} .tk .val{color:var(--text)}
+  .tk .up{color:var(--verified)} .tk .dn{color:var(--ember)} .tk .off{color:var(--brass)}
+
+  .status{display:flex;align-items:center;padding:0 18px;gap:20px;min-width:230px}
+  .clock{font-family:var(--font-mono);font-size:13px;letter-spacing:.5px}
+  .clock .z{color:var(--muted-2);font-size:11px}
+  .live{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--verified);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,155,122,.5)}70%{box-shadow:0 0 0 7px rgba(79,155,122,0)}100%{box-shadow:0 0 0 0 rgba(79,155,122,0)}}
+
+  .grid{flex:1;display:grid;grid-template-columns:210px 1fr 320px;min-height:0}
+
+  /* nav */
+  .nav{border-right:1px solid var(--line);background:var(--panel-2);display:flex;flex-direction:column;min-height:0}
+  .nav-sec{padding:14px 16px 8px;font-family:var(--font-mono);font-size:10px;letter-spacing:2px;color:var(--muted-2);text-transform:uppercase}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:9px 16px;font-size:13.5px;color:var(--muted);border-left:2px solid transparent;transition:background .15s,color .15s,border-color .15s;width:100%;text-align:left}
+  .nav-item:hover{background:var(--panel);color:var(--text)}
+  .nav-item.on{color:var(--text);border-left-color:var(--brass);background:linear-gradient(90deg,rgba(200,165,75,.08),transparent)}
+  .nav-item .ic{width:15px;text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--muted-2)}
+  .nav-item.on .ic{color:var(--brass)}
+  .nav-item .k{margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted-2);border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px}
+  .nav-foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--line-soft);font-family:var(--font-mono);font-size:10px;color:var(--muted-2);line-height:1.7}
+  .nav-foot .demo{color:var(--brass);letter-spacing:1px}
+
+  .work{overflow-y:auto;min-height:0;padding:22px 26px 40px;background:radial-gradient(1200px 400px at 20% -10%,rgba(200,165,75,.04),transparent),var(--ink)}
+  .work::-webkit-scrollbar,.nav::-webkit-scrollbar,.read::-webkit-scrollbar{width:9px}
+  .work::-webkit-scrollbar-thumb,.read::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+
+  .module{display:none}
+  .module.on{display:block;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-family:var(--font-mono);font-size:10.5px;letter-spacing:2.5px;text-transform:uppercase;color:var(--brass);margin-bottom:6px}
+  .h-mod{font-family:var(--font-display);font-size:27px;font-weight:500;letter-spacing:.2px;margin-bottom:3px}
+  .sub-mod{color:var(--muted);font-size:13px;margin-bottom:22px;max-width:62ch}
+
+  /* status chips — the trust ladder */
+  .prov{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid;line-height:1.4;white-space:nowrap}
+  .prov .glyph{width:6px;height:6px}
+  .prov.verified{color:var(--verified);border-color:#2F6B52}
+  .prov.verified .glyph{background:var(--verified);transform:rotate(45deg)}
+  .prov.corroborated{color:var(--street);border-color:#356470}
+  .prov.corroborated .glyph{background:var(--street);border-radius:50%}
+  .prov.indicative{color:var(--brass);border-color:var(--brass-dim)}
+  .prov.indicative .glyph{background:var(--brass)}
+
+  .conf{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+  .conf-track{width:74px;height:5px;background:var(--line-soft);border-radius:3px;overflow:hidden}
+  .conf-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--brass-dim),var(--brass))}
+  .conf-fill.hi{background:linear-gradient(90deg,#2F6B52,var(--verified))}
+  .conf-fill.lo{background:linear-gradient(90deg,#7a3a26,var(--ember))}
+
+  /* index cards */
+  .idx-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:26px}
+  .idx{border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,var(--panel),var(--panel-2));padding:16px;cursor:pointer;transition:border-color .18s,transform .18s}
+  .idx:hover{border-color:var(--brass-dim);transform:translateY(-2px)}
+  .idx.isVerified{border-color:#2F6B52}
+  .idx.isVerified:hover{border-color:var(--verified)}
+  .idx-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px}
+  .idx-name{font-size:13px;font-weight:600;letter-spacing:.2px}
+  .idx-code{font-family:var(--font-mono);font-size:9.5px;color:var(--muted-2);letter-spacing:1px;margin-top:2px}
+  .idx-val{font-family:var(--font-mono);font-size:26px;font-weight:500;letter-spacing:-.5px;line-height:1}
+  .idx-unit{font-size:12px;color:var(--muted);font-weight:400}
+  .idx-delta{font-family:var(--font-mono);font-size:12px;margin:6px 0 12px}
+  .idx-delta.up{color:var(--verified)} .idx-delta.dn{color:var(--ember)}
+  .spark{width:100%;height:32px;display:block;margin-bottom:12px}
+  .idx-foot{display:flex;justify-content:space-between;align-items:center}
+
+  /* cable feed — telegram */
+  .feed-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:2px;gap:14px}
+  .feed-title{font-family:var(--font-mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+  .feed-title b{color:var(--text)}
+  .feed-rule{flex:1;font-family:var(--font-mono);font-size:9px;letter-spacing:3px;color:var(--muted-2);text-align:center;overflow:hidden;white-space:nowrap}
+  .feed-count{font-family:var(--font-mono);font-size:10px;color:var(--muted-2)}
+
+  .cable{display:grid;grid-template-columns:70px 1fr;gap:14px;padding:14px 6px;border-bottom:1px solid var(--line-soft);cursor:pointer;transition:background .15s}
+  .cable:hover{background:rgba(200,165,75,.04)}
+  .cable.sel{background:rgba(200,165,75,.06);box-shadow:inset 2px 0 0 var(--brass)}
+  .cable-time{font-family:var(--font-mono);font-size:10.5px;color:var(--muted-2);line-height:1.5}
+  .cable-time .d{color:var(--muted)}
+  .cable-main{min-width:0}
+  .cable-meta{display:flex;align-items:center;gap:9px;margin-bottom:6px;flex-wrap:wrap}
+  .cable-type{font-family:var(--font-mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .cable-head{font-family:var(--font-tele);font-size:15.5px;color:var(--text);margin-bottom:4px;line-height:1.4}
+  .cable-body{font-family:var(--font-tele);font-size:13px;color:var(--muted);line-height:1.6}
+  .cable-tags{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;align-items:center}
+
+  /* read rail */
+  .read{border-left:1px solid var(--line);background:var(--panel-2);overflow-y:auto;min-height:0;padding:20px 18px 40px}
+  .read-eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--brass);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .read-eyebrow::after{content:"";flex:1;height:1px;background:var(--line)}
+  .read-morse{font-family:var(--font-mono);font-size:9px;letter-spacing:3px;color:var(--muted-2);margin-bottom:14px}
+  .read-entity{font-family:var(--font-display);font-size:19px;font-weight:500;line-height:1.2;margin-bottom:4px}
+  .read-class{font-family:var(--font-mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+  .rd-field{margin-bottom:14px}
+  .rd-label{font-family:var(--font-mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-2);margin-bottom:4px}
+  .rd-val{font-family:var(--font-tele);font-size:14px;color:var(--text);line-height:1.5}
+
+  .firewall{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:8px}
+  .fw-half{padding:13px 14px}
+  .fw-fact{background:linear-gradient(180deg,rgba(79,155,122,.07),transparent);border-bottom:1px dashed var(--line)}
+  .fw-read{background:linear-gradient(180deg,rgba(200,165,75,.06),transparent)}
+  .fw-tag{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}
+  .fw-fact .fw-tag{color:var(--verified)} .fw-read .fw-tag{color:var(--brass)}
+  .fw-txt{font-family:var(--font-tele);font-size:13.5px;line-height:1.6;color:var(--text)}
+  .fw-txt.typing::after{content:"▋";color:var(--brass);animation:blink .7s step-end infinite}
+  @keyframes blink{50%{opacity:0}}
+  .fw-cite{font-family:var(--font-mono);font-size:10px;color:var(--muted-2);margin-top:8px;line-height:1.5}
+  .fw-divider{text-align:center;font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--muted-2);padding:5px;background:var(--panel);text-transform:uppercase}
+
+  .panel-block{border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:18px 20px;margin-bottom:16px}
+  .ladder{display:grid;gap:10px;margin:4px 0 8px}
+  .rung{display:grid;grid-template-columns:130px 1fr;gap:14px;align-items:start;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+  .rung:last-child{border-bottom:none}
+  .rung .r-txt{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .rung .r-txt b{color:var(--text);font-weight:600}
+
+  .tierrow{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:15px 0;border-bottom:1px solid var(--line-soft)}
+  .tierrow:last-child{border-bottom:none}
+  .tier-name{font-size:15px;font-weight:600;margin-bottom:3px}
+  .tier-buyer{font-size:12px;color:var(--muted)}
+  .tier-price{font-family:var(--font-mono);font-size:15px;color:var(--brass);text-align:right;white-space:nowrap}
+  .tier-price small{display:block;color:var(--muted-2);font-size:10.5px;margin-top:2px}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .kpi{border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:14px 15px}
+  .kpi-val{font-family:var(--font-mono);font-size:22px;font-weight:500;margin-bottom:2px}
+  .kpi-lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2)}
+
+  .watch-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .watch-tbl th{font-family:var(--font-mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-2);text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  .watch-tbl td{padding:12px 10px;border-bottom:1px solid var(--line-soft);color:var(--text)}
+  .watch-tbl tr:hover td{background:rgba(200,165,75,.03)}
+  .watch-ent{font-weight:600}
+  .flag{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:3px;letter-spacing:.5px}
+  .flag.watch{color:var(--brass);border:1px solid var(--brass-dim)}
+  .flag.act{color:var(--ember);border:1px solid #7a3a26}
+  .flag.clear{color:var(--verified);border:1px solid #2F6B52}
+
+  .rpt{display:grid;grid-template-columns:1fr auto;gap:18px;padding:16px 0;border-bottom:1px solid var(--line-soft);align-items:start}
+  .rpt:last-child{border-bottom:none}
+  .rpt-name{font-size:14.5px;font-weight:600;margin-bottom:4px}
+  .rpt-desc{font-size:12.5px;color:var(--muted);line-height:1.5;max-width:52ch}
+  .rpt-price{font-family:var(--font-mono);font-size:14px;color:var(--brass);text-align:right;white-space:nowrap}
+  .rpt-price small{display:block;color:var(--muted-2);font-size:10px;margin-top:2px}
+
+  .note{font-family:var(--font-mono);font-size:11px;color:var(--muted-2);line-height:1.7;border-left:2px solid var(--line);padding-left:14px;margin-top:20px}
+
+  @media (max-width:1080px){
+    .grid{grid-template-columns:64px 1fr}
+    .read{display:none}
+    .nav-item .lbl,.nav-item .k,.nav-sec{display:none}
+    .nav-item{justify-content:center;padding:12px 0}
+    .brand{min-width:0}.morse{display:none}
+    .idx-row{grid-template-columns:1fr}
+    .kpi-row{grid-template-columns:repeat(2,1fr)}
+    .rung{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .status{display:none}.brand .tag{display:none}
+    .work{padding:16px 14px 40px}
+    .cable{grid-template-columns:1fr}.cable-time{display:none}
+    .tierrow,.rpt{grid-template-columns:1fr}.tier-price,.rpt-price{text-align:left}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+    .ticker{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="boot"><div class="boot-inner">
+  <div class="boot-word"><span style="color:var(--muted);font-weight:400;font-size:.6em">THE</span> LAGOS <b>SIGNAL</b></div>
+  <div class="boot-morse">·—·· ·— ——· ——— ···</div>
+  <div class="line" id="b1">> mounting verified corpus [CONFIRM] ............ <span class="ok">ok</span></div>
+  <div class="line" id="b2">> opening source network [BDC · PORT · ESTATE] .. <span class="ok">ok</span></div>
+  <div class="line" id="b3">> computing proprietary indices ................. <span class="ok">ok</span></div>
+  <div class="line" id="b4">> engaging firewall [FACT | READ] ............... <span class="ok">ok</span></div>
+  <div class="line" id="b5">> signal ready. stand by for cables.</div>
+</div></div>
+
+<div class="shell">
+  <header class="masthead">
+    <div class="brand">
+      <div class="word"><span class="the">THE</span> LAGOS <span class="sys">SIGNAL</span></div>
+      <div class="tag">Nigeria Intelligence Terminal · TLS Media</div>
+      <div class="morse" title="LAGOS in Morse">·—·· ·— ——· ——— ···</div>
+    </div>
+    <div class="ticker-wrap"><div class="ticker" id="ticker"></div></div>
+    <div class="status">
+      <div>
+        <div class="clock" id="clock">--:--:--</div>
+        <div class="live"><span class="dot"></span> Live session</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <nav class="nav">
+      <div class="nav-sec">Terminal</div>
+      <button class="nav-item on" data-mod="board"><span class="ic">▤</span><span class="lbl">The Board</span><span class="k">B</span></button>
+      <button class="nav-item" data-mod="indices"><span class="ic">≋</span><span class="lbl">Indices</span><span class="k">I</span></button>
+      <button class="nav-item" data-mod="cables"><span class="ic">✦</span><span class="lbl">Cables</span><span class="k">C</span></button>
+      <button class="nav-item" data-mod="reg"><span class="ic">§</span><span class="lbl">Reg. Signal</span><span class="k">R</span></button>
+      <div class="nav-sec">Desk</div>
+      <button class="nav-item" data-mod="watch"><span class="ic">◎</span><span class="lbl">Watchlist</span><span class="k">W</span></button>
+      <button class="nav-item" data-mod="reports"><span class="ic">▦</span><span class="lbl">Reports</span><span class="k">P</span></button>
+      <button class="nav-item" data-mod="access"><span class="ic">⌘</span><span class="lbl">Access</span><span class="k">A</span></button>
+      <div class="nav-foot">
+        <div class="demo">◆ REPRESENTATIVE DEMO</div>
+        Sample intelligence for product<br>demonstration. Not live reporting.<br><br>
+        FX basis · CBN 07 Jul 2026<br>$1=₦1,370 · €1=₦1,568
+      </div>
+    </nav>
+
+    <main class="work" id="work">
+
+      <!-- BOARD -->
+      <section class="module on" id="board">
+        <div class="eyebrow">Live Board · Lagos + Federal</div>
+        <h1 class="h-mod">The Board</h1>
+        <p class="sub-mod">Proprietary indices fused from the verified corpus and the street source network. Every figure carries a trust status — Verified, Corroborated, or Indicative — and a confidence read. Click any card or cable.</p>
+        <div class="idx-row" id="idxRow"></div>
+        <div class="feed-head">
+          <div class="feed-title"><b>Cable Feed</b> · telegrams</div>
+          <div class="feed-rule">· — · · &nbsp; · — &nbsp; — — · &nbsp; — — — &nbsp; · · ·</div>
+          <div class="feed-count" id="feedCount"></div>
+        </div>
+        <div id="feed"></div>
+      </section>
+
+      <!-- INDICES -->
+      <section class="module" id="indices">
+        <div class="eyebrow">Proprietary · Citable References</div>
+        <h1 class="h-mod">The Indices</h1>
+        <p class="sub-mod">The un-copyable layer. Some numbers are computed from the verified corpus; others from human sources no competitor can scrape. Here is exactly how each one earns its trust status.</p>
+
+        <div class="panel-block" style="border-color:var(--brass-dim)">
+          <div class="fw-tag" style="color:var(--brass);margin-bottom:12px"><span class="prov indicative"><span class="glyph"></span>How a number earns its status</span></div>
+          <div class="ladder">
+            <div class="rung">
+              <span class="prov verified"><span class="glyph"></span>Verified</span>
+              <div class="r-txt"><b>Reserved for corpus-derived facts.</b> Every input traces to a human-reviewed CONFIRM citation. Only the Regulatory Pressure Index qualifies today — because a legal obligation has a single source of truth. No number reaches Verified without human sign-off. That rule is permanent.</div>
+            </div>
+            <div class="rung">
+              <span class="prov corroborated"><span class="glyph"></span>Corroborated</span>
+              <div class="r-txt"><b>The ceiling a street index can reach.</b> Published methodology, ≥3 independent sources agreeing within tolerance, timestamped and reproducible. A measurement has no single legal truth — so it is corroborated, never "verified." Honest, and defensible in an investment committee.</div>
+            </div>
+            <div class="rung">
+              <span class="prov indicative"><span class="glyph"></span>Indicative</span>
+              <div class="r-txt"><b>Early or thin-sourced.</b> A single desk, a first read, a widening you should watch but not yet bank. Flagged so no one mistakes a signal for a settled number.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="idxDetail"></div>
+        <div class="note">Promotion path Indicative → Corroborated: widen the source panel, publish the method, set a divergence tolerance, archive every reading, human sign-off before publish. It is the CONFIRM promotion gate, applied to data.</div>
+      </section>
+
+      <!-- CABLES -->
+      <section class="module" id="cables">
+        <div class="eyebrow">Signal Stream</div>
+        <h1 class="h-mod">Cables</h1>
+        <p class="sub-mod">The structured intelligence telegram: what moved, who is exposed, what to do, and how sure we are. The cable is the atom of the whole signal.</p>
+        <div class="feed-head"><div class="feed-title"><b>All cables</b> · rolling 7 days</div><div class="feed-rule">— · — · &nbsp; · — &nbsp; · · · · &nbsp; · — · · &nbsp; · </div><div class="feed-count" id="feedCount2"></div></div>
+        <div id="feedFull"></div>
+      </section>
+
+      <!-- REG -->
+      <section class="module" id="reg">
+        <div class="eyebrow">CONFIRM-fed · Firewalled</div>
+        <h1 class="h-mod">Regulatory Signal</h1>
+        <p class="sub-mod">First read on any CBN / SEC / FIRS / NDPC / NUPRC action, grounded on CONFIRM's verified corpus. The line between verified fact and TLS interpretation is drawn in the interface, not just in policy.</p>
+        <div class="panel-block" style="border-color:var(--brass-dim)">
+          <div class="fw-tag" style="color:var(--brass);margin-bottom:10px"><span class="prov verified"><span class="glyph"></span>The Firewall</span></div>
+          <div class="fw-txt" style="color:var(--muted)">CONFIRM states what is verified and cited. The Lagos Signal states what it means and who is exposed. Verified fact never inherits TLS's editorial risk; TLS opinion never borrows CONFIRM's authority.</div>
+        </div>
+        <div id="regList"></div>
+        <div class="note">Analytical, never adversarial. Interpret the rule — do not attack the regulator. CONFIRM's relationships stay warm and arms-length.</div>
+      </section>
+
+      <!-- WATCH -->
+      <section class="module" id="watch">
+        <div class="eyebrow">Entity Monitor</div>
+        <h1 class="h-mod">Watchlist</h1>
+        <p class="sub-mod">Entities under active observation, each tied to its exposure driver and the cable that last moved it. Client-configurable in the production build.</p>
+        <div class="panel-block" style="padding:6px 14px">
+          <table class="watch-tbl">
+            <thead><tr><th>Entity</th><th>Sector</th><th>Driver</th><th>Status</th><th>Confidence</th></tr></thead>
+            <tbody id="watchBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="module" id="reports">
+        <div class="eyebrow">Bespoke Intelligence</div>
+        <h1 class="h-mod">Reports</h1>
+        <p class="sub-mod">Where a live question meets the corpus and the source network. Commissioned, dated, and defensible enough for an investment committee or a board pack.</p>
+        <div class="panel-block" id="rptList"></div>
+      </section>
+
+      <!-- ACCESS -->
+      <section class="module" id="access">
+        <div class="eyebrow">Commercial</div>
+        <h1 class="h-mod">Access</h1>
+        <p class="sub-mod">Sell to people self-serve; sell to companies face-to-face. The free drop feeds the funnel; the licences and retainers pay the bills.</p>
+        <div class="kpi-row">
+          <div class="kpi"><div class="kpi-val" style="color:var(--verified)">2</div><div class="kpi-lbl">Data engines</div></div>
+          <div class="kpi"><div class="kpi-val" style="color:var(--brass)">7</div><div class="kpi-lbl">Proprietary indices</div></div>
+          <div class="kpi"><div class="kpi-val">₦59m</div><div class="kpi-lbl">Yr-1 model · conservative</div></div>
+          <div class="kpi"><div class="kpi-val">~$43k</div><div class="kpi-lbl">≈ €38k</div></div>
+        </div>
+        <div class="panel-block" id="tierList"></div>
+        <div class="note">Internal CONFIRM licence priced ₦500k–1.5m/quarter so TLS never gives the crown jewels away as newsletter fodder. Model every line lower until a real invoice clears.</div>
+      </section>
+
+    </main>
+
+    <aside class="read" id="read"></aside>
+  </div>
+</div>
+
+<script>
+const USD=1370, EUR=1568;
+const ng = n => '₦'+n.toLocaleString('en-NG');
+const usd = n => '$'+Math.round(n/USD).toLocaleString('en-US');
+const eur = n => '€'+Math.round(n/EUR).toLocaleString('en-US');
+
+/* ---- indices (7) ---- */
+const indices=[
+  { code:'RPX', name:'Regulatory Pressure Index', unit:'0–100 · corpus-derived', val:'71', sub:'12-sector composite',
+    delta:'+6 verified obligations w/w', dir:'dn', status:'verified', conf:96,
+    spark:[58,60,62,63,66,69,71],
+    fact:'Composite of active verified obligations and live enforcement actions across 12 sectors, computed from the CONFIRM corpus. Every input traces to a human-reviewed citation.',
+    factCite:'CONFIRM corpus · verified · human sign-off 06 Jul 2026',
+    read:'Data-protection and capital-markets pressure are spiking (NDPC window + SEC T+1). If you operate in either, your compliance clock is the shortest it has been all year. This is the only index that reaches Verified — because law has a single source of truth.' },
+  { code:'LSNX', name:'Naira Index', unit:'NGN/USD spread', val:'1,400', sub:'parallel vs CBN 1,370',
+    delta:'+2.2% premium', dir:'dn', status:'corroborated', conf:88,
+    spark:[1362,1368,1371,1380,1388,1392,1400],
+    fact:'CBN reference ₦1,370.19/USD; parallel print ₦1,400/USD across the Lagos BDC network (n=11 desks), agreeing within tolerance.',
+    factCite:'SOURCE · CBN NFEM + BDC network (n=11) · corroborated 07 Jul 2026',
+    read:'Premium has widened a fourth straight session — a demand squeeze, not a policy shift. Unhedged Q3 importers are exposed. Watch for a CBN intervention signal before month-end.' },
+  { code:'PFXI', name:'Port Friction Index', unit:'0–100 · higher = worse', val:'67', sub:'Apapa + Tin Can',
+    delta:'+9 pts w/w', dir:'dn', status:'corroborated', conf:74,
+    spark:[52,55,54,58,61,64,67],
+    fact:'Composite of clearing days, demurrage incidence and truck-turnaround across Apapa and Tin Can, volume-weighted, from the customs-agent network (n=6).',
+    factCite:'SOURCE · customs-agent network (n=6) · corroborated wk 27',
+    read:'Friction climbing into the seasonal build. Perishable and JIT importers should price an extra 3–5 clearing days into Q3 landed cost.' },
+  { code:'PCI', name:'Powering Cost Index', unit:'index · Jan=100', val:'132.6', sub:'diesel · PMS · Band-A',
+    delta:'+4.2% m/m', dir:'dn', status:'corroborated', conf:79,
+    spark:[100,108,115,120,125,129,132.6],
+    fact:'Blended cost of running operations: diesel and PMS pump prices from the station network plus published DisCo Band-A tariffs. Tariff inputs are official; fuel inputs corroborated across sites.',
+    factCite:'SOURCE · station network + DisCo tariff filings · corroborated wk 27',
+    read:'The real operator tax. Anyone running on generators is watching margin erode faster than headline inflation shows. This is the number SMEs feel every single day — and nobody indexes it.' },
+  { code:'MBI', name:'Market Basket Index', unit:'staples · m/m', val:'+3.1%', sub:'real food inflation',
+    delta:'above official CPI', dir:'dn', status:'corroborated', conf:76,
+    spark:[100,101,102,102.4,103,104.2,107.3],
+    fact:'Price of a fixed staple basket tracked across Mile 12 and major Lagos markets, sampled weekly — the lived inflation number, not the seasonally-smoothed official print.',
+    factCite:'SOURCE · market network (n=5 markets) · corroborated wk 27',
+    read:'When your street number runs ahead of official CPI, that gap is the story. Consumer-facing operators should read demand softness from here, not from NBS.' },
+  { code:'REMM', name:'Real Estate Movement', unit:'index · Lekki=100', val:'108.4', sub:'prime rent momentum',
+    delta:'+1.6% m/m', dir:'up', status:'indicative', conf:69,
+    spark:[100,101.5,103,104.2,105.8,107,108.4],
+    fact:'Rent-movement tracker across prime corridors (Ikoyi, Lekki Ph.1, VI, Yaba) from estate-agent transaction reports. Panel still thin — flagged Indicative until the source base widens.',
+    factCite:'SOURCE · estate-agent network (n=8, widening) · indicative',
+    read:'Momentum concentrates in Lekki Ph.1 and Yaba, not Lagos-wide. Diaspora and dollar-earner demand is the driver. Treat as a signal to watch, not yet a number to bank.' },
+  { code:'CLX', name:'Cash Liquidity Index', unit:'POS premium %', val:'4.5%', sub:'cash-access friction',
+    delta:'+0.8pt w/w', dir:'dn', status:'indicative', conf:64,
+    spark:[3.1,3.4,3.6,3.9,4.0,4.2,4.5],
+    fact:'Premium charged by POS/agent-banking operators to access physical cash, sampled across Lagos agent clusters. Early-stage panel — Indicative.',
+    factCite:'SOURCE · agent-banking network (pilot) · indicative',
+    read:'A rising cash premium is a stress tell for the informal economy. Thin panel for now, but if it holds above 4% it becomes a headline liquidity signal worth banking.' }
+];
+
+/* ---- cables ---- */
+const cables=[
+  { t:'09:42', d:'07 JUL', type:'Regulatory · NDPC', status:'verified',
+    head:'NDPC OPENS ENFORCEMENT WINDOW ON CONTROLLER REGISTRATION',
+    body:'Commission signals active enforcement against unregistered controllers processing at scale. Obligation verified and cited in corpus.',
+    conf:92, ent:'NDPC', cls:'Regulator · Data Protection',
+    fact:'The Nigeria Data Protection Act 2023 requires data controllers of major importance to register with the Commission. Obligation VERIFIED · human-reviewed · citation on file.',
+    factCite:'CONFIRM corpus · NDPA 2023 · verified 06 Jul 2026',
+    read:'Fintech, health and large e-commerce controllers are first in line. The exposed party is anyone processing at scale who treated registration as optional. Register before the window closes; do not wait for a demand letter.' },
+  { t:'08:15', d:'07 JUL', type:'FX · Monetary', status:'corroborated',
+    head:'PARALLEL PREMIUM WIDENS TO 2.2% ON IMPORTER DEMAND',
+    body:'Street desks quoting 1,400 against CBN 1,370. Fourth consecutive session of widening. Demand-led; no supply shock observed.',
+    conf:88, ent:'Naira / USD', cls:'Currency · Parallel Market',
+    fact:'CBN reference ₦1,370.19; Lagos parallel print ₦1,400 across the BDC network (n=11), agreeing within tolerance.',
+    factCite:'SOURCE · CBN NFEM + BDC network · corroborated 07 Jul 2026',
+    read:'A squeeze, not a policy signal. Unhedged Q3 importers are exposed. If you invoice in USD, good week; if you pay in USD, lock forward cover now.' },
+  { t:'07:05', d:'07 JUL', type:'Energy · Ops Cost', status:'corroborated',
+    head:'POWERING COST INDEX HITS 132.6 AS DIESEL FIRMS',
+    body:'Blended diesel, PMS and Band-A tariff cost up 4.2% month-on-month. The generator tax keeps climbing.',
+    conf:79, ent:'Operating Cost', cls:'Energy · SME Margin',
+    fact:'PCI at 132.6 (Jan=100), +4.2% m/m, driven by diesel pump prices across the station network plus Band-A tariff filings.',
+    factCite:'SOURCE · station network + DisCo filings · corroborated wk 27',
+    read:'Every generator-dependent operator is losing margin faster than headline inflation implies. Price reviews that ignore this are quietly underwater.' },
+  { t:'16:30', d:'06 JUL', type:'Trade · Ports', status:'corroborated',
+    head:'APAPA CLEARING TIMES PUSH FRICTION INDEX TO 67',
+    body:'Truck turnaround and demurrage both deteriorating into the seasonal build. Composite up 9 points week-on-week.',
+    conf:74, ent:'Apapa / Tin Can', cls:'Logistics · Ports',
+    fact:'Port Friction Index composite at 67/100, +9 w/w, driven by clearing-day and demurrage components.',
+    factCite:'SOURCE · customs-agent network · corroborated wk 27',
+    read:'Perishable and JIT importers should add 3–5 days to Q3 landed-cost models. The window to pre-clear ahead of the build is closing.' },
+  { t:'14:05', d:'05 JUL', type:'Regulatory · SEC', status:'verified',
+    head:'SEC T+1 SETTLEMENT — OPERATIONAL READINESS GAP FLAGGED',
+    body:'Move to T+1 raises operational demands on brokers and custodians. Obligation mapped and verified in corpus.',
+    conf:90, ent:'SEC Nigeria', cls:'Regulator · Capital Markets',
+    fact:'SEC transition to a T+1 settlement cycle imposes shortened settlement obligations on market operators. VERIFIED · cited.',
+    factCite:'CONFIRM corpus · SEC rulebook · verified 04 Jul 2026',
+    read:'Smaller brokers without automated back-office are exposed — settlement fails carry penalty risk. Custodian tech spend is the tell this quarter.' },
+  { t:'11:20', d:'05 JUL', type:'Real Estate', status:'indicative',
+    head:'LEKKI PH.1 RENT MOMENTUM OUTPACES VI OFFICE STOCK',
+    body:'Prime residential lets in Lekki and the Yaba tech corridor firm on dollar-earner demand; VI commercial soft. Panel thin — indicative.',
+    conf:69, ent:'Prime Lagos', cls:'Property · Rent',
+    fact:'REMM at 108.4 (Lekki base 100), +1.6% m/m, momentum concentrated residential not commercial. Source panel still widening.',
+    factCite:'SOURCE · estate-agent network · indicative',
+    read:'A corridor story, not a Lagos-wide one. Capital chasing "Lagos property" broadly will underperform capital chasing the two live corridors.' },
+  { t:'17:45', d:'04 JUL', type:'Regulatory · FCCPC', status:'verified',
+    head:'FCCPC SIGNALS SCRUTINY OF DIGITAL-LENDING TERMS',
+    body:'Consumer-protection focus on disclosure and recovery practices in digital lending. Obligations verified in corpus.',
+    conf:85, ent:'FCCPC', cls:'Regulator · Consumer Protection',
+    fact:'FCCPC consumer-protection obligations on fair disclosure and lawful recovery apply to digital lenders. VERIFIED · cited.',
+    factCite:'CONFIRM corpus · FCCPA 2018 · verified 03 Jul 2026',
+    read:'Digital lenders using aggressive recovery are exposed. Reputational and licensing risk now outweighs recovery yield — smart operators are getting ahead of this.' }
+];
+
+const watch=[
+  { ent:'Tier-2 fintech cohort', sec:'Financial Services', drv:'NDPC registration window', status:'act', conf:90 },
+  { ent:'Generator-run SMEs', sec:'Cross-sector', drv:'Powering Cost +4.2% m/m', status:'watch', conf:79 },
+  { ent:'Unhedged USD payers', sec:'Cross-sector', drv:'Parallel premium widening', status:'act', conf:88 },
+  { ent:'Perishable importers', sec:'Trade / FMCG', drv:'Port friction +9 w/w', status:'watch', conf:74 },
+  { ent:'Small brokerages', sec:'Capital Markets', drv:'SEC T+1 readiness', status:'watch', conf:90 },
+  { ent:'Compliant large controllers', sec:'Data / Tech', drv:'NDPA registration complete', status:'clear', conf:92 }
+];
+
+const reports=[
+  { name:'True Landed Cost — Lagos Import, Q3', desc:'Full clearing-to-warehouse cost model for a named product line, port friction and powering cost priced in. Built for a go/no-go decision.', price:1500000 },
+  { name:'Regulatory Exposure Map — Sector', desc:'Every live obligation touching a sector, sourced to CONFIRM, exposure ranked and remediation sequenced. Board-pack ready.', price:2400000 },
+  { name:'Market-Entry Read — Nigeria', desc:'The defensible market read a foreign entrant or their consultancy puts their name on: real FX, real friction, real rules.', price:4200000 }
+];
+
+const tiers=[
+  { name:'Friday Drop', buyer:'Everyone · top of funnel', price:'Free', small:'citation engine' },
+  { name:'Premium Terminal', buyer:'Operators, investors, individuals', price:'₦20,000/mo', small:'≈ $15 · €13' },
+  { name:'Index Licence', buyer:'Funds, banks, media, consultancies', price:'₦750k/qtr', small:'≈ $547 · €478 · per index' },
+  { name:'Bespoke Report', buyer:'Entrants, corporates, law firms', price:'₦1.5–4.2m', small:'≈ $1.1k–3.1k · per report' },
+  { name:'Retainer Intelligence', buyer:'Corporates w/ Nigeria exposure, DFIs', price:'₦1.2m/mo', small:'≈ $876 · €765 · standing' }
+];
+
+/* ---- render ---- */
+const statusLabel={verified:'Verified',corroborated:'Corroborated',indicative:'Indicative'};
+const provChip = s => `<span class="prov ${s}"><span class="glyph"></span>${statusLabel[s]}</span>`;
+const confBar = c => {
+  const cls = c>=85?'hi':(c<72?'lo':'');
+  return `<span class="conf"><span class="conf-track"><span class="conf-fill ${cls}" style="width:${c}%"></span></span>${c}% conf</span>`;
+};
+const sparkSVG = (arr,dir) => {
+  const w=100,h=32,min=Math.min(...arr),max=Math.max(...arr),pad=3;
+  const pts=arr.map((v,i)=>{const x=(i/(arr.length-1))*(w-pad*2)+pad;const y=h-pad-((v-min)/((max-min)||1))*(h-pad*2);return `${x.toFixed(1)},${y.toFixed(1)}`;}).join(' ');
+  const col = dir==='up' ? 'var(--verified)' : 'var(--ember)';
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+};
+
+document.getElementById('idxRow').innerHTML = indices.map((x,i)=>`
+  <div class="idx ${x.status==='verified'?'isVerified':''}" data-idx="${i}">
+    <div class="idx-top"><div><div class="idx-name">${x.name}</div><div class="idx-code">${x.code} · ${x.unit}</div></div>${provChip(x.status)}</div>
+    <div class="idx-val">${x.val} <span class="idx-unit">${x.sub}</span></div>
+    <div class="idx-delta ${x.dir}">${x.dir==='up'?'▲':'▼'} ${x.delta}</div>
+    ${sparkSVG(x.spark,x.dir)}
+    <div class="idx-foot">${confBar(x.conf)}<span style="font-family:var(--font-mono);font-size:10px;color:var(--muted-2)">wk 27</span></div>
+  </div>`).join('');
+
+document.getElementById('idxDetail').innerHTML = indices.map((x,i)=>`
+  <div class="panel-block" data-idx="${i}" style="cursor:pointer">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div><div style="font-family:var(--font-display);font-size:20px">${x.name}</div><div class="idx-code" style="margin-top:3px">${x.code} · ${x.unit}</div></div>
+      <div style="text-align:right"><div class="idx-val" style="font-size:23px">${x.val}</div><div class="idx-delta ${x.dir}" style="margin:4px 0 0">${x.dir==='up'?'▲':'▼'} ${x.delta}</div></div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:center;margin:12px 0 10px;flex-wrap:wrap">${provChip(x.status)}${confBar(x.conf)}</div>
+    <div class="fw-txt" style="color:var(--muted)">${x.fact}</div>
+    <div class="fw-cite">${x.factCite}</div>
+  </div>`).join('');
+
+function cableRow(c,idx){
+  return `<div class="cable" data-cab="${idx}">
+    <div class="cable-time"><div class="d">${c.d}</div>${c.t}</div>
+    <div class="cable-main">
+      <div class="cable-meta"><span class="cable-type">${c.type}</span>${provChip(c.status)}</div>
+      <div class="cable-head">${c.head}</div>
+      <div class="cable-body">${c.body}</div>
+      <div class="cable-tags">${confBar(c.conf)}<span style="font-family:var(--font-mono);font-size:10px;color:var(--muted-2)">▸ ${c.ent}</span></div>
+    </div></div>`;
+}
+document.getElementById('feed').innerHTML = cables.map(cableRow).join('');
+document.getElementById('feedFull').innerHTML = cables.map(cableRow).join('');
+document.getElementById('feedCount').textContent = cables.length+' active';
+document.getElementById('feedCount2').textContent = cables.length+' cables';
+
+document.getElementById('regList').innerHTML = cables.filter(c=>c.status==='verified').map(c=>`
+  <div class="panel-block" style="padding:0;overflow:hidden">
+    <div style="padding:14px 18px 10px"><div class="cable-meta"><span class="cable-type">${c.type}</span></div><div class="cable-head" style="font-size:15.5px">${c.head}</div></div>
+    <div class="firewall" style="margin:0;border:none;border-top:1px solid var(--line)">
+      <div class="fw-half fw-fact"><div class="fw-tag">${provChip('verified')} Verified fact</div><div class="fw-txt">${c.fact}</div><div class="fw-cite">${c.factCite}</div></div>
+      <div class="fw-divider">— firewall —</div>
+      <div class="fw-half fw-read"><div class="fw-tag">${provChip('indicative')} TLS read · editorial</div><div class="fw-txt">${c.read}</div><div class="fw-cite">ANALYSIS · The Lagos Signal · not a verified statement</div></div>
+    </div></div>`).join('');
+
+document.getElementById('watchBody').innerHTML = watch.map(w=>`
+  <tr><td class="watch-ent">${w.ent}</td><td style="color:var(--muted)">${w.sec}</td><td style="color:var(--muted)">${w.drv}</td>
+  <td><span class="flag ${w.status}">${w.status==='act'?'ACTION':w.status==='watch'?'WATCH':'CLEAR'}</span></td><td>${confBar(w.conf)}</td></tr>`).join('');
+
+document.getElementById('rptList').innerHTML = reports.map(r=>`
+  <div class="rpt"><div><div class="rpt-name">${r.name}</div><div class="rpt-desc">${r.desc}</div></div>
+  <div class="rpt-price">${ng(r.price)}<small>${usd(r.price)} · ${eur(r.price)}</small></div></div>`).join('');
+
+document.getElementById('tierList').innerHTML = tiers.map(t=>`
+  <div class="tierrow"><div><div class="tier-name">${t.name}</div><div class="tier-buyer">${t.buyer}</div></div>
+  <div class="tier-price">${t.price}<small>${t.small}</small></div></div>`).join('');
+
+/* ---- typewriter reveal (the novel bit) ---- */
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function typeInto(el,str){
+  if(!el) return;
+  if(reduce){el.textContent=str;return;}
+  el.textContent=''; el.classList.add('typing');
+  let i=0; clearInterval(el._tw);
+  el._tw=setInterval(()=>{ el.textContent=str.slice(0,++i); if(i>=str.length){clearInterval(el._tw);el.classList.remove('typing');} },10);
+}
+
+/* ---- read rail ---- */
+const readEl=document.getElementById('read');
+function showRead(kind,i){
+  let readStr='';
+  if(kind==='idx'){const x=indices[i]; readStr=x.read;
+    readEl.innerHTML=`<div class="read-eyebrow">The Read</div><div class="read-morse">⌁ incoming</div>
+      <div class="read-entity">${x.name}</div><div class="read-class">${x.code} · ${x.unit}</div>
+      <div class="rd-field"><div class="rd-label">Reading</div><div class="rd-val" style="font-family:var(--font-mono);font-size:20px">${x.val}</div></div>
+      <div class="rd-field"><div class="rd-label">Trust status</div><div style="margin-top:5px">${provChip(x.status)}</div></div>
+      <div class="rd-field"><div class="rd-label">Confidence</div><div style="margin-top:5px">${confBar(x.conf)}</div></div>
+      <div class="firewall">
+        <div class="fw-half fw-fact"><div class="fw-tag">${provChip(x.status)} ${x.status==='verified'?'Verified fact':'Source fact'}</div><div class="fw-txt">${x.fact}</div><div class="fw-cite">${x.factCite}</div></div>
+        <div class="fw-divider">— firewall —</div>
+        <div class="fw-half fw-read"><div class="fw-tag">${provChip('indicative')} The read</div><div class="fw-txt" id="rdType"></div><div class="fw-cite">ANALYSIS · The Lagos Signal</div></div>
+      </div>`;
+  } else {
+    const c=cables[i]; readStr=c.read;
+    readEl.innerHTML=`<div class="read-eyebrow">The Read</div><div class="read-morse">⌁ incoming</div>
+      <div class="read-entity">${c.ent}</div><div class="read-class">${c.cls}</div>
+      <div class="rd-field"><div class="rd-label">Cable</div><div class="rd-val">${c.head}</div></div>
+      <div class="rd-field"><div class="rd-label">Confidence</div><div style="margin-top:5px">${confBar(c.conf)}</div></div>
+      <div class="firewall">
+        <div class="fw-half fw-fact"><div class="fw-tag">${provChip(c.status)} ${c.status==='verified'?'Verified fact':'Source fact'}</div><div class="fw-txt">${c.fact}</div><div class="fw-cite">${c.factCite}</div></div>
+        <div class="fw-divider">— firewall —</div>
+        <div class="fw-half fw-read"><div class="fw-tag">${provChip('indicative')} TLS read · editorial</div><div class="fw-txt" id="rdType"></div><div class="fw-cite">ANALYSIS · not a verified statement</div></div>
+      </div>`;
+  }
+  readEl.scrollTop=0;
+  typeInto(document.getElementById('rdType'), readStr);
+}
+
+/* ---- interactions ---- */
+function bindPicks(){
+  document.querySelectorAll('[data-idx]').forEach(el=>el.onclick=()=>{document.querySelectorAll('.cable').forEach(c=>c.classList.remove('sel'));showRead('idx',+el.dataset.idx);});
+  document.querySelectorAll('[data-cab]').forEach(el=>el.onclick=()=>{document.querySelectorAll('.cable').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');showRead('cab',+el.dataset.cab);});
+}
+bindPicks();
+showRead('cab',0);
+
+const mods=document.querySelectorAll('.nav-item');
+mods.forEach(b=>b.onclick=()=>{mods.forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('.module').forEach(m=>m.classList.remove('on'));document.getElementById(b.dataset.mod).classList.add('on');document.getElementById('work').scrollTop=0;});
+const keymap={b:'board',i:'indices',c:'cables',r:'reg',w:'watch',p:'reports',a:'access'};
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const m=keymap[e.key.toLowerCase()];if(m)document.querySelector(`[data-mod="${m}"]`).click();});
+
+/* ticker */
+const tk=[
+  {s:'USD/NGN',v:'1,370.19',c:'off',n:'CBN'},{s:'USD/NGN',v:'1,400.00',c:'dn',n:'PARALLEL ▼'},
+  {s:'EUR/NGN',v:'1,568.32',c:'off',n:'CBN'},{s:'RPX',v:'71',c:'dn',n:'reg pressure ▲'},
+  {s:'LSNX',v:'+2.2%',c:'dn',n:'spread ▼'},{s:'PFXI',v:'67',c:'dn',n:'friction ▲'},
+  {s:'PCI',v:'132.6',c:'dn',n:'powering ▲'},{s:'REMM',v:'108.4',c:'up',n:'rent ▲'},
+  {s:'CORPUS',v:'verified',c:'up',n:'CONFIRM ●'}
+];
+const tkHTML = tk.map(t=>`<span class="tk"><span class="sym">${t.s}</span><span class="val ${t.c}">${t.v}</span><span class="sym" style="font-size:10px">${t.n}</span></span>`).join('');
+document.getElementById('ticker').innerHTML = tkHTML+tkHTML;
+
+/* clock */
+function tick(){const d=new Date();const p=n=>String(n).padStart(2,'0');document.getElementById('clock').innerHTML=`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} <span class="z">WAT</span>`;}
+tick(); setInterval(tick,1000);
+
+/* boot */
+['b1','b2','b3','b4','b5'].forEach((id,i)=>{document.getElementById(id).style.animation=`bootline .3s ease forwards ${.25+i*.32}s`;});
+setTimeout(()=>document.body.classList.add('booted'),2400);
+</script>
+</body>
+</html>
