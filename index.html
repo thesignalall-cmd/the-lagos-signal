@@ -388,6 +388,22 @@ const supabaseClient = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 ); 
+async function loadSignals(){
+
+  const { data, error } = await supabaseClient
+    .from('signals')
+    .select('*');
+
+  if(error){
+    console.error("TLS Supabase Error:", error);
+    return;
+  }
+
+  console.log("TLS Signals:", data);
+
+}
+
+loadSignals();  
 const usd = n => '$'+Math.round(n/USD).toLocaleString('en-US');
 const eur = n => '€'+Math.round(n/EUR).toLocaleString('en-US');
 
