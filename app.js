@@ -1,9 +1,10 @@
 // TLS — The Lagos Signal
 // Live Supabase Signal Reader
 window.SUPABASE_URL = "https://qopurblqvxiqjdspvdlp.supabase.co";
-window.SUPABASE_KEY = sb_publishable_NlXRXayfiY4VB90T2s8yrw_ug0vgT66;
 
-const supabaseClient = supabase.createClient(
+window.SUPABASE_KEY = "YOUR_PUBLISHABLE_KEY_HERE";
+
+const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
