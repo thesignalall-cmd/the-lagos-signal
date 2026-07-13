@@ -1,14 +1,13 @@
 // TLS — The Lagos Signal
 // Live Supabase Signal Reader
+const SUPABASE_URL = "https://qopurblqvxiqjdspvdlp.supabase.co";
 
-
+const SUPABASE_KEY = sb_publishable_NlXRXayfiY4VB90T2s8yrw_ug0vgT66;
 
 const supabaseClient = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
-
-
 async function loadTLSsignals() {
 
   const { data, error } = await supabaseClient
